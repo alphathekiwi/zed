@@ -2162,7 +2162,7 @@ impl AgentPanel {
         self.cleanup_retained_threads(cx);
     }
 
-    fn cleanup_retained_threads(&mut self, cx: &App) {
+    fn cleanup_retained_threads(&mut self, cx: &mut App) {
         let mut potential_removals = self
             .retained_threads
             .iter()
@@ -2185,7 +2185,61 @@ impl AgentPanel {
             .take(n)
             .collect::<Vec<_>>();
         for id in to_remove {
-            self.retained_threads.remove(&id);
+            let Some(conversation_view) = self.retained_threads.remove(&id) else {
+                continue;
+            };
+            Self::close_conversation_view_session(&conversation_view, cx);
+        }
+    }
+
+    fn close_conversation_view_session(
+        conversation_view: &Entity<ConversationView>,
+        cx: &mut App,
+    ) {
+        let Some(thread_view) = conversation_view.read(cx).root_thread_view() else {
+            return;
+        };
+        let thread_entity = thread_view.read(cx).thread.clone();
+        let (connection, session_id) = {
+            let thread = thread_entity.read(cx);
+            if !thread.connection().supports_close_session() {
+                return;
+            }
+            (thread.connection().clone(), thread.session_id().clone())
+        };
+        connection
+            .close_session(&session_id, cx)
+            .detach_and_log_err(cx);
+    }
+
+    /// Drop all in-memory state for a thread and ask the agent to close the
+    /// session. Used by `Archive Thread` when the user holds the secondary
+    /// modifier to force a hard close. Reopen must go through `load_session`.
+    pub fn force_close_thread(
+        &mut self,
+        thread_id: ThreadId,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(conversation_view) = self.retained_threads.remove(&thread_id) {
+            Self::close_conversation_view_session(&conversation_view, cx);
+        }
+
+        let base_matches = matches!(
+            &self.base_view,
+            BaseView::AgentThread { conversation_view }
+                if conversation_view.read(cx).thread_id == thread_id
+        );
+        if base_matches {
+            let old_view = std::mem::replace(&mut self.base_view, BaseView::Uninitialized);
+            if let BaseView::AgentThread { conversation_view } = old_view {
+                Self::close_conversation_view_session(&conversation_view, cx);
+            }
+            self.clear_overlay_state();
+            self.activate_draft(false, window, cx);
+            self.serialize(cx);
+            cx.emit(AgentPanelEvent::ActiveViewChanged);
+            cx.notify();
         }
     }
 

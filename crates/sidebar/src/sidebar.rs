@@ -2994,6 +2994,7 @@ impl Sidebar {
     fn archive_thread(
         &mut self,
         session_id: &acp::SessionId,
+        force_close: bool,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -3017,6 +3018,22 @@ impl Sidebar {
                     .as_ref()
                     .map(|workspace| PathList::new(&workspace.read(cx).root_paths(cx)))
             });
+
+        if force_close {
+            if let Some(thread_id) = thread_id {
+                if let Some(multi_workspace) = self.multi_workspace.upgrade() {
+                    let workspaces: Vec<_> =
+                        multi_workspace.read(cx).workspaces().cloned().collect();
+                    for workspace in workspaces {
+                        if let Some(panel) = workspace.read(cx).panel::<AgentPanel>(cx) {
+                            panel.update(cx, |panel, cx| {
+                                panel.force_close_thread(thread_id, window, cx);
+                            });
+                        }
+                    }
+                }
+            }
+        }
 
         // Compute which linked worktree roots should be archived from disk if
         // this thread is archived. This must happen before we remove any
@@ -3549,7 +3566,7 @@ impl Sidebar {
                     AgentThreadStatus::Completed | AgentThreadStatus::Error => {}
                 }
                 if let Some(session_id) = thread.metadata.session_id.clone() {
-                    self.archive_thread(&session_id, window, cx);
+                    self.archive_thread(&session_id, false, window, cx);
                 }
             }
             _ => {}
@@ -3924,9 +3941,10 @@ impl Sidebar {
                         .tooltip({
                             let focus_handle = focus_handle.clone();
                             move |_window, cx| {
-                                Tooltip::for_action_in(
+                                Tooltip::with_meta_in(
                                     "Archive Thread",
-                                    &RemoveSelectedThread,
+                                    Some(&RemoveSelectedThread),
+                                    "⌘-click to force close connection",
                                     &focus_handle,
                                     cx,
                                 )
@@ -3934,9 +3952,10 @@ impl Sidebar {
                         })
                         .on_click({
                             let session_id = session_id_for_delete.clone();
-                            cx.listener(move |this, _, window, cx| {
+                            cx.listener(move |this, event: &gpui::ClickEvent, window, cx| {
                                 if let Some(ref session_id) = session_id {
-                                    this.archive_thread(session_id, window, cx);
+                                    let force_close = event.modifiers().secondary();
+                                    this.archive_thread(session_id, force_close, window, cx);
                                 }
                             })
                         }),
