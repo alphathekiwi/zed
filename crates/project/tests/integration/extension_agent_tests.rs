@@ -309,6 +309,7 @@ fn test_tilde_expansion_in_settings() {
         path: PathBuf::from("~/custom/agent"),
         args: vec!["serve".into()],
         env: Default::default(),
+        icon: Some(PathBuf::from("~/custom/icon.svg")),
         default_mode: None,
         default_model: None,
         favorite_models: vec![],
@@ -319,6 +320,7 @@ fn test_tilde_expansion_in_settings() {
     let converted: CustomAgentServerSettings = settings.into();
     let CustomAgentServerSettings::Custom {
         command: AgentServerCommand { path, .. },
+        icon,
         ..
     } = converted
     else {
@@ -328,5 +330,10 @@ fn test_tilde_expansion_in_settings() {
     assert!(
         !path.to_string_lossy().starts_with("~"),
         "Tilde should be expanded for custom agent path"
+    );
+    let icon = icon.expect("icon should be preserved");
+    assert!(
+        !icon.to_string_lossy().starts_with("~"),
+        "Tilde should be expanded for custom agent icon path"
     );
 }

@@ -1422,6 +1422,7 @@ async fn open_new_agent_servers_entry_in_settings_editor(
                                 path: "path_to_executable".into(),
                                 args: vec![],
                                 env: HashMap::default(),
+                                icon: None,
                                 default_mode: None,
                                 default_model: None,
                                 favorite_models: vec![],

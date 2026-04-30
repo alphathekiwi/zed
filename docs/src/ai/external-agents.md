@@ -240,6 +240,21 @@ You can also add agents through your settings file ([how to edit](../configuring
 }
 ```
 
+You can optionally set an `icon` for the agent — a path to a local SVG file that will be displayed in the agent picker and toolbar in place of the default agent icon. Tilde (`~`) is expanded.
+
+```json [settings]
+{
+  "agent_servers": {
+    "My Custom Agent": {
+      "type": "custom",
+      "command": "node",
+      "args": ["~/projects/agent/index.js", "--acp"],
+      "icon": "~/icons/my-agent.svg"
+    }
+  }
+}
+```
+
 This can be useful if you're in the middle of developing a new agent that speaks the protocol and you want to debug it.
 
 It's also possible to customize environment variables for registry-installed agents like Claude Agent, Codex, and Gemini CLI by using their registry names (`claude-acp`, `codex-acp`, `gemini`) with `"type": "registry"` in your settings.

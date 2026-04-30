@@ -508,8 +508,11 @@ impl AgentServerStore {
 
         for (name, settings) in new_settings.iter() {
             match settings {
-                CustomAgentServerSettings::Custom { command, .. } => {
+                CustomAgentServerSettings::Custom { command, icon, .. } => {
                     let agent_name = AgentId(name.clone().into());
+                    let icon = icon
+                        .as_ref()
+                        .map(|path| SharedString::from(path.to_string_lossy().into_owned()));
                     self.external_agents.insert(
                         agent_name.clone(),
                         ExternalAgentEntry::new(
@@ -518,7 +521,7 @@ impl AgentServerStore {
                                 project_environment: project_environment.clone(),
                             }) as Box<dyn ExternalAgentServer>,
                             ExternalAgentSource::Custom,
-                            None,
+                            icon,
                             None,
                         ),
                     );
@@ -1658,6 +1661,10 @@ impl AllAgentServersSettings {
 pub enum CustomAgentServerSettings {
     Custom {
         command: AgentServerCommand,
+        /// Resolved local path to an SVG icon for the agent, if configured.
+        ///
+        /// Default: None
+        icon: Option<PathBuf>,
         /// The default mode to use for this agent.
         ///
         /// Note: Not only all agents support modes.
@@ -1840,6 +1847,7 @@ impl From<settings::CustomAgentServerSettings> for CustomAgentServerSettings {
                 path,
                 args,
                 env,
+                icon,
                 default_mode,
                 default_model,
                 favorite_models,
@@ -1851,6 +1859,9 @@ impl From<settings::CustomAgentServerSettings> for CustomAgentServerSettings {
                     args,
                     env: Some(env),
                 },
+                icon: icon.map(|icon| {
+                    PathBuf::from(shellexpand::tilde(&icon.to_string_lossy()).as_ref())
+                }),
                 default_mode,
                 default_model,
                 favorite_models,

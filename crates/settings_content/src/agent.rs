@@ -518,6 +518,12 @@ pub enum CustomAgentServerSettings {
         /// Default: {}
         #[serde(default, skip_serializing_if = "HashMap::is_empty")]
         env: HashMap<String, String>,
+        /// Path to an SVG icon to display for this agent in the agent picker
+        /// and toolbar. Tilde (`~`) is expanded. If not set, the default agent
+        /// icon is used.
+        ///
+        /// Default: None
+        icon: Option<PathBuf>,
         /// The default mode to use for this agent.
         ///
         /// Note: Not only all agents support modes.
